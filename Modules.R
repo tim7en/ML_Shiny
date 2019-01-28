@@ -65,13 +65,13 @@ mat_par <- function(id) {
 }
 
 
-srcCor <- function(id) {
+srcCor <- function(id) { #simple corrplot
   ns <- NS(id)
   withSpinner(plotOutput(ns("srcCor")))
 }
 
 
-srcDCor <- function(id) {
+srcDCor <- function(id) { #correlation plot with scatterplots
   ns <- NS(id)
   withSpinner(plotOutput(ns("srcDCor"), height = "1000px"))
 }

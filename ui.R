@@ -139,7 +139,7 @@ ui <- dashboardPage(
                               'Data',
                               column(
                                 width = 12,
-                                DTOutput("dat.Target"),
+                                DT_tab ("dat2"),
                                 style = "height:'auto'; overflow-y: scroll;overflow-x: scroll;",
                                 withSpinner(plotOutput("p1"), color = "#ffc425"),
                                 withSpinner(plotOutput("p2"), color = "#ffc425")

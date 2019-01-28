@@ -25,26 +25,22 @@ server <- function(input, output) {
   #tar final
   tarFinal <- callModule (columnChooser, 'dat2', dat.Target())
   
-  #omit na before outputting target data
-  output$dat.Target <- renderDT({
-    na.omit(dat.Target())
-  })
 
-  
   #gradient boosting function with input variables used for training
   cvXgb <- reactive({
     req (srcFinal())
     dat <- na.omit(srcFinal())
     
+    
     rownames(dat) <- dat[, 1]
     dat <- dat[, -1]
     dat[, 1] <- as.numeric(dat[, 1]) - 1
-    
     numClasses <- length(unique(dat[,1])) #number of unique classes in the data frame, always check it!
     
     
-    dat <- cbind(dat[, 1], dat)
+    #dat <- cbind(dat[, 1], dat)
     train_index <- sample(1:nrow(dat), nrow(dat) * input$split)
+    
     data_variables <- as.matrix(dat[, -1])
     data_label <- dat[, 1]
     data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
@@ -221,7 +217,6 @@ server <- function(input, output) {
   
   #print cross validation data
   output$cvXgb <- renderPrint({
-    #print (srcFinal)
     dat <- cvXgb_comp()
     dat[[6]][1:2]
   })
