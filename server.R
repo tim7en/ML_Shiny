@@ -15,55 +15,15 @@ server <- function(input, output) {
   dat.Source <- callModule(csvFile, "file1",
                           stringsAsFactors = FALSE)
   
-  #give user an option to pick columns from training to remove
-  output$srcCol <- renderUI({
-    req(dat.Source())
-    dat.Source <- dat.Source()
-    checkboxGroupInput("ColSourcenames",
-      "Remove Column:",
-      names(dat.Source)[-c(1, 2)],
-      selected = names(dat.Source)[-c(1, 2)]
-    )
-  })
-
-  #omit na before outputting source table
-  output$dat.Source <- renderDT({
-    na.omit (dat.Source())
-  })
+  #Source data used for cv model 
+  srcFinal <- callModule (columnChooser, 'dat1', dat.Source())
   
-  #corrplot of src
-  output$srcCor <- renderPlot({
-    req(dat.Source())
-    dat <- na.omit(dat.Source())
-    M <- cor(dat[,-c(1,2)])
-    M[M < input$R & M > -input$R] <- 0
-    corrplot(M, method = input$method, order = "hclust", input$type, tl.cex = input$tl.cex, diag = FALSE)
-    
-  }, height = 'auto')
-  
-  #corrplot of src with distributions
-  output$srcDCor <- renderPlot ({
-    req (dat.Source ())
-    req (input$ColSourcenames)
-    if (length (input$ColSourcenames) < 2) {
-      
-    } else {
-      dat <- na.omit (dat.Source ())
-      dat <- dat[,input$ColSourcenames]
-      pairs.panels(dat, 
-                   method = "pearson", # correlation method
-                   hist.col = "#00AFBB",
-                   density = TRUE,  # show density plots
-                   ellipses = TRUE # show correlation ellipses
-      )
-    }
-  })
-  
-
   #upload target data
   dat.Target <- callModule(csvFile, "file2",
                            stringsAsFactors = FALSE)
   
+  #tar final
+  tarFinal <- callModule (columnChooser, 'dat2', dat.Target())
   
   #omit na before outputting target data
   output$dat.Target <- renderDT({
@@ -73,14 +33,17 @@ server <- function(input, output) {
   
   #gradient boosting function with input variables used for training
   cvXgb <- reactive({
-    req (input$ColSourcenames)
-    req (dat.Source())
-    dat <- dat.Source()
+    req (srcFinal())
+    dat <- na.omit(srcFinal())
+    
     rownames(dat) <- dat[, 1]
     dat <- dat[, -1]
     dat[, 1] <- as.numeric(dat[, 1]) - 1
+    
     numClasses <- length(unique(dat[,1])) #number of unique classes in the data frame, always check it!
-    dat <- cbind(dat[, 1], dat[, input$ColSourcenames])
+    
+    
+    dat <- cbind(dat[, 1], dat)
     train_index <- sample(1:nrow(dat), nrow(dat) * input$split)
     data_variables <- as.matrix(dat[, -1])
     data_label <- dat[, 1]
@@ -91,9 +54,14 @@ server <- function(input, output) {
     train_data <- data_variables[train_index, ]
     train_label <- data_label[train_index]
     train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
+    
+    
     test_data <- data_variables[-train_index, ]
     test_label <- data_label[-train_index]
     test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
+    
+    #print (test_matrix)
+    
     best_param <- list()
     best_seednumber <- input$seedN
     best_logloss <- Inf
@@ -116,6 +84,7 @@ server <- function(input, output) {
       cv.nfold <- input$cv.Nflds
       seed.number <- sample.int(10000, 1)[[1]]
       set.seed(seed.number)
+      
       mdcv <- xgb.cv(
         data = train_matrix, params = xgb_params, nthread = input$Cores,
         nfold = cv.nfold, nrounds = cv.nround,
@@ -132,14 +101,14 @@ server <- function(input, output) {
         best_param <- xgb_params
       }
     }
-
+    
     set.seed(best_seednumber)
     cv_model <- xgb.cv(
       params = best_param,
       data = train_matrix,
       nrounds = best_logloss_index,
       nfold = cv.nfold,
-      verbose = FALSE,
+      verbose = F,
       nthread = input$Cores,
       prediction = TRUE
     )
@@ -163,19 +132,25 @@ server <- function(input, output) {
   #gradient boosting function used to predict target
   tarPred <- eventReactive(input$accept2, {
     req(cvXgb())
-    req(dat.Source())
+    req(srcFinal())
     cvPars <- cvXgb()
+    
     set.seed(cvPars[[3]]) # best seed
-    dat <- dat.Source()
+    dat <- srcFinal()
+    
+    target <- tarFinal()
+    
+    target <- target[,colnames(dat)]
+    
     rownames(dat) <- dat[, 1]
     dat <- dat[, -1]
     sourceNames <- unique(dat[, 1])
     dat[, 1] <- as.numeric(dat[, 1]) - 1
-    dat <- cbind(dat[, 1], dat[, input$ColSourcenames])
+
     train_index <- sample(1:nrow(dat), nrow(dat) * 1) # changed to 1, since entire dataset
     data_variables <- as.matrix(dat[, -1])
     data_label <- dat[, 1]
-    data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
+    data_matrix <- xgb.DMatrix(data = as.matrix(data_variables), label = data_label)
 
     # 1. step, test for cv
     # split train data and make xgb.DMatrix
@@ -189,15 +164,18 @@ server <- function(input, output) {
       nrounds = cvPars[[2]]
     )
 
-    target <- dat.Target()
+
     target <- target [, -1]
     target[, 1] <- 1
     target[, 1] <- as.numeric(target[, 1]) - 1
-    target <- cbind(target[, 1], target[, input$ColSourcenames])
+
+  
+    #target <- cbind(target[, 1], target[, input$ColSourcenames])
     test_data <- as.matrix(target [, -1])
     test_label <- target [, 1]
     test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
     numberOfClasses <- length(unique(dat[, 1]))
+    
     test_pred <- predict(bst_model, newdata = test_matrix)
 
     test_prediction <- matrix(test_pred,
@@ -243,6 +221,7 @@ server <- function(input, output) {
   
   #print cross validation data
   output$cvXgb <- renderPrint({
+    #print (srcFinal)
     dat <- cvXgb_comp()
     dat[[6]][1:2]
   })

@@ -71,7 +71,7 @@ ui <- dashboardPage(
                           ),
                           column(
                             width = 6,
-                            uiOutput("srcCol")
+                            columnChooserUI ('dat1')
                           )
                         )
                       ),
@@ -82,7 +82,7 @@ ui <- dashboardPage(
                               "Data",
                               column(
                                 width = 12,
-                                DTOutput("dat.Source"),
+                                DT_tab ('dat1'),
                                 style = "height:'auto'; overflow-y: scroll;overflow-x: scroll;",
                                 withSpinner(verbatimTextOutput("cvXgb"), color = "#ffc425"),
                                 plotOutput('cvConf')
@@ -94,22 +94,16 @@ ui <- dashboardPage(
                                 column(
                                   width = 9,
                                   br(),
-                                  withSpinner (plotOutput("srcCor"))
+                                  srcCor("dat1")
                                 ),
                                 column(
                                   width = 3,
-                                  sliderInput("R", "R2", value = 0.6, min = 0, max = 0.99, step = 0.1, animate = T),
-                                  selectInput("method", "Method", c(
-                                    "circle", "square", "ellipse", "number", "shade",
-                                    "color", "pie"
-                                  )),
-                                  selectInput("type", "Type", c("full", "lower", "upper")),
-                                  sliderInput("tl.cex", "FontSize", value = 0.5, min = 0.1, max = 1.5, step = 0.1)
+                                  mat_par ('dat1')
                                 ),
                                 column (
                                   width = 12,
                                   br(),
-                                  withSpinner (plotOutput('srcDCor', height = "1000px"))
+                                  srcDCor ('dat1')
                                 )
                               )
                             )
@@ -125,15 +119,53 @@ ui <- dashboardPage(
                 fluidPage(
                   fluidRow(
                     sidebarLayout(
-                      sidebarPanel(
-                        csvFileInput("file2", "Target data"),
-                        actionButton("accept2", "Accept", icon = icon("random"))
+                      sidebarPanel (
+                        fluidRow(
+                          column (
+                            width =6,
+                            csvFileInput("file2", "Target data"),
+                            actionButton("accept2", "Accept", icon = icon("random"))
+                          ),
+                          column (
+                            width =6,
+                            columnChooserUI ('dat2')
+                          )
+                        )
                       ),
                       mainPanel(
-                        DTOutput("dat.Target"),
-                        style = "height:'auto'; overflow-y: scroll;overflow-x: scroll;",
-                        withSpinner(plotOutput("p1"), color = "#ffc425"),
-                        withSpinner(plotOutput("p2"), color = "#ffc425")
+                        fluidRow(
+                          tabsetPanel(
+                            tabPanel(
+                              'Data',
+                              column(
+                                width = 12,
+                                DTOutput("dat.Target"),
+                                style = "height:'auto'; overflow-y: scroll;overflow-x: scroll;",
+                                withSpinner(plotOutput("p1"), color = "#ffc425"),
+                                withSpinner(plotOutput("p2"), color = "#ffc425")
+                              )
+                            ),
+                            tabPanel(
+                              "Plots",
+                              fluidRow(
+                                column(
+                                  width = 9,
+                                  br(),
+                                  srcCor("dat2")
+                                ),
+                                column(
+                                  width = 3,
+                                  mat_par ('dat2')
+                                ),
+                                column (
+                                  width = 12,
+                                  br(),
+                                  srcDCor ('dat2')
+                                )
+                              )
+                            )
+                          )
+                        )
                       )
                     )
                   )
