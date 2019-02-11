@@ -85,6 +85,7 @@ ui <- dashboardPage(
                                 DT_tab ('dat1'),
                                 style = "height:'auto'; overflow-y: scroll;overflow-x: scroll;",
                                 withSpinner(verbatimTextOutput("cvXgb"), color = "#ffc425"),
+                                plotOutput ('p_er'),
                                 plotOutput('cvConf')
                               )
                             ),

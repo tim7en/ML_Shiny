@@ -7,7 +7,7 @@ csvFileInput <- function(id, label = "CSV file") {
   ns <- NS(id)
   tagList(
     fileInput(ns("file"), label,
-      multiple = TRUE,
+      multiple = F,
       accept = c(
         "text/csv",
         "text/comma-separated-values,text/plain",

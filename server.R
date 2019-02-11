@@ -63,7 +63,7 @@ server <- function(input, output) {
     best_seednumber <- input$seedN
     best_logloss <- Inf
     best_logloss_index <- 0
-
+    
     for (iter in 1:input$cv.N) {
       xgb_params <- list(
         objective = "multi:softprob",
@@ -87,7 +87,9 @@ server <- function(input, output) {
         nfold = cv.nfold, nrounds = cv.nround,
         verbose = F, early_stopping_rounds = 8, maximize = FALSE, prediction = T
       )
-
+      
+      #v[[iter]] <- mdcv
+        
       min_logloss <- min(mdcv$evaluation_log[, test_mlogloss_mean])
       min_logloss_index <- which.min(mdcv$evaluation_log[, test_mlogloss_mean])
 
@@ -110,6 +112,7 @@ server <- function(input, output) {
       prediction = TRUE
     )
 
+    
     OOF_prediction <- data.frame(cv_model$pred) %>%
         mutate(
           max_prob = max.col(., ties.method = "last"),
@@ -121,7 +124,7 @@ server <- function(input, output) {
       mode = "everything"
     )
     
-    return(c(best_logloss, best_logloss_index, best_seednumber, j, c(best_param)))
+    return(c(best_logloss, best_logloss_index, best_seednumber, j, c(best_param), cv_model))
   })
 
   
@@ -156,10 +159,13 @@ server <- function(input, output) {
     train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
 
     bst_model <- xgb.train(
-      params = cvPars[5:length(cvPars)],
+      params = cvPars[5:(length(cvPars)-1)],
       data = train_matrix,
       nrounds = cvPars[[2]]
     )
+    
+    #bst_model2 <<- bst_model
+    #plot (bst_model)
 
 
     target <- target [, -1]
@@ -199,6 +205,7 @@ server <- function(input, output) {
     datas[, 2] <- as.factor(datas[, 2])
     p <- ggplot(datas, aes(x = Id, y = Proportion, fill = Class)) +
       geom_bar(stat = "identity", position = "fill") + ggtitle("Proportion of sediment fluxes")
+    
     d <- list(gp, p)
     return(d)
   })
@@ -232,6 +239,22 @@ server <- function(input, output) {
       geom_text(aes(label = sprintf("%1.0f", value)), vjust = 1) +
       scale_fill_gradient(low = "lightblue", high = "salmon") +
       theme_bw() + theme(legend.position = "none")
+    
+  })
+  
+  output$p_er <- renderPlot ({
+    
+    req (cvXgb_comp())
+    bst_cv <- cvXgb_comp()
+    dats <- data.frame(bst_cv$evaluation_log$test_mlogloss_mean, bst_cv$evaluation_log$train_mlogloss_mean) #
+    colnames(dats) <- c('Test', 'Train')
+    dats <- melt (dats)
+    dats$iter <- rep (seq(1,dim(dats)[1]/2), 2)
+    colnames (dats) <- c('Class', 'Value', 'Iter')
+    ggplot (data = dats, 
+                    aes(x=Iter, y=Value, group=Class))+
+      geom_line(aes(color = Class))+
+      labs(title="XGB cross validation")
     
   })
 }
